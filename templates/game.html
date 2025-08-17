@@ -1,0 +1,150 @@
+<!-- templates/game.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Flappy Face</title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background: #87CEEB; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let faceImg = new Image();
+    faceImg.src = '{{ url_for("static", filename=photo_path) }}';
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let bird = { x: 50, y: canvas.height / 2, size: 50, velocity: 0, gravity: 0.5, lift: -10 };
+    let obstacles = [];
+    let score = 0;
+    let gameOver = false;
+    let frame = 0;
+
+    function drawBird() {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(bird.x + bird.size / 2, bird.y + bird.size / 2, bird.size / 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(faceImg, bird.x, bird.y, bird.size, bird.size);
+        ctx.restore();
+    }
+
+    function drawObstacles() {
+        obstacles.forEach(obs => {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(obs.x, 0, obs.width, obs.top);
+            ctx.fillRect(obs.x, canvas.height - obs.bottom, obs.width, obs.bottom);
+        });
+    }
+
+    function update() {
+        if (gameOver) return;
+
+        bird.velocity += bird.gravity;
+        bird.y += bird.velocity;
+
+        if (bird.y + bird.size > canvas.height || bird.y < 0) endGame();
+
+        if (frame % 100 === 0) {
+            let gap = 150;
+            let top = Math.random() * (canvas.height - gap - 100) + 50;
+            obstacles.push({ x: canvas.width, width: 50, top: top, bottom: canvas.height - top - gap });
+        }
+
+        obstacles.forEach((obs, index) => {
+            obs.x -= 3;
+            if (obs.x + obs.width < 0) obstacles.splice(index, 1);
+
+            if (obs.x < bird.x + bird.size && obs.x + obs.width > bird.x &&
+                (bird.y < obs.top || bird.y + bird.size > canvas.height - obs.bottom)) {
+                endGame();
+            }
+
+            if (obs.x + obs.width < bird.x && !obs.passed) {
+                score++;
+                obs.passed = true;
+            }
+        });
+
+        frame++;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBird();
+        drawObstacles();
+
+        ctx.fillStyle = 'black';
+        ctx.font = '24px Arial';
+        ctx.fillText('Score: ' + score, 10, 30);
+
+        if (gameOver) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40);
+
+            ctx.font = '36px Arial';
+            ctx.fillText('Your Score: ' + score, canvas.width / 2, canvas.height / 2 + 10);
+
+            ctx.font = '24px Arial';
+            ctx.fillText('Tap or Click to Restart', canvas.width / 2, canvas.height / 2 + 50);
+        }
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function jump() {
+        if (!gameOver) bird.velocity = bird.lift;
+        else resetGame();
+    }
+
+    function endGame() {
+        gameOver = true;
+        fetch('/save_score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score: score })
+        }).then(() => console.log('Score saved'));
+    }
+
+    function resetGame() {
+        bird.y = canvas.height / 2;
+        bird.velocity = 0;
+        obstacles = [];
+        score = 0;
+        gameOver = false;
+        frame = 0;
+    }
+
+    // Controls
+    window.addEventListener('keydown', e => { if (e.code === 'Space') jump(); });
+
+    // pointerdown заменяет click и touchend, мгновенная реакция
+    canvas.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        jump();
+    });
+
+    faceImg.onload = () => { gameLoop(); };
+</script>
+</body>
+</html>

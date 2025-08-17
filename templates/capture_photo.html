@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Загрузка фото</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; padding: 20px; }
+    video, img { width: 100%; max-width: 300px; margin: 10px 0; }
+    button, input[type="file"] { padding: 10px 20px; font-size: 18px; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Загрузи фото</h1>
+
+  <!-- форма для загрузки -->
+  <form id="photoForm" action="/upload_photo" method="post" enctype="multipart/form-data">
+    <video id="video" autoplay playsinline></video><br>
+    <input type="file" name="photo" accept="image/*" capture="user">
+    <br>
+    <button type="submit">✅ Подтвердить</button>
+  </form>
+
+  <script>
+    // Включаем камеру (для предпросмотра)
+    const video = document.getElementById('video');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      .then(stream => video.srcObject = stream)
+      .catch(err => console.log("Камера недоступна:", err));
+  </script>
+</body>
+</html>
